@@ -29,7 +29,6 @@ const sumGearRatios = (
   nextLine: string,
 ) => {
   const gearMatches = line.matchAll(/\*/g);
-  const debug = [];
   for (const gearMatch of gearMatches) {
     const gearPosition = gearMatch.index;
 
@@ -53,16 +52,10 @@ const sumGearRatios = (
       })
       .map((numberMatch) => Number.parseInt(numberMatch[0]));
 
-    console.log(adjacentNumbers);
-
     if (adjacentNumbers.length === 2) {
-      console.log(adjacentNumbers);
-
       total += adjacentNumbers[0] * adjacentNumbers[1];
     }
   }
-
-  // console.log(debug);
 };
 
 lines.forEach((line, idx) => {
