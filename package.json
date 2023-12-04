@@ -4,13 +4,7 @@
   "description": "Solutions for advent of code 2023",
   "main": "index.js",
   "scripts": {
-    "1-1": "tsx day1/solution1.ts",
-    "2-1": "tsx day2/solution1.ts",
-    "2-2": "tsx day2/solution2.ts",
-    "3-1": "tsx day3/solution1.ts",
-    "3-2": "tsx day3/solution2.ts",
-    "4-1": "tsx day4/solution1.ts",
-    "4-2": "tsx day4/solution2.ts"
+    "solution": "func() { npx tsx day$1/solution$2.ts; }; func"
   },
   "author": "",
   "license": "ISC",
