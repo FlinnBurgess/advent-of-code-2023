@@ -7,7 +7,7 @@ import { convertLineToNumberArray } from "../utils";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-let lowestLocationNumber = 0;
+let lowestLocationNumber = Infinity;
 
 const inputStream = fs.createReadStream(`${__dirname}/input.txt`);
 const rl = readline.createInterface({
@@ -22,7 +22,7 @@ type ConversionMap = {
   sourceRangeEnd: number;
 };
 
-let sourceRanges: [number, number][] = [];
+let seeds: [number, number][] = [];
 const conversionMaps: { [mapName: string]: ConversionMap[] } = {
   "seed-to-soil": [],
   "soil-to-fertilizer": [],
@@ -37,10 +37,9 @@ let mapsCurrentlyBeingParsed: ConversionMap[] = [];
 
 for await (const line of rl) {
   if (line.startsWith("seeds:")) {
-    const seeds = convertLineToNumberArray(line.split(": ")[1]);
-    while (seeds.length >= 2) {
-      const [startSeed, seedRange] = [seeds.shift(), seeds.shift()];
-      sourceRanges.push([startSeed, startSeed + seedRange - 1]);
+    const unpairedSeeds = convertLineToNumberArray(line.split(": ")[1]);
+    while (unpairedSeeds.length >= 2) {
+      seeds.push([unpairedSeeds.shift(), unpairedSeeds.shift()]);
     }
   } else if (line.includes("map:")) {
     mapsCurrentlyBeingParsed = conversionMaps[line.split(" ")[0]];
@@ -56,93 +55,31 @@ for await (const line of rl) {
   }
 }
 
-Object.values(conversionMaps).forEach((maps) => {
-  maps.sort((map1, map2) => map1.sourceRangeStart - map2.sourceRangeStart);
-});
-function findNewRanges(
-  rangeStart: number,
-  rangeEnd: number,
-  maps: ConversionMap[],
-): [number, number][] {
-  const newRanges: [number, number][] = [];
-
-  let nextRangeStart = rangeStart;
-
-  if (
-    maps.findIndex(
-      (map) =>
-        (rangeStart >= map.sourceRangeStart &&
-          rangeStart <= map.sourceRangeEnd) ||
-        (rangeEnd >= map.sourceRangeStart && rangeEnd <= map.sourceRangeEnd),
-    ) === -1
-  ) {
-    return [[rangeStart, rangeEnd]];
-  }
-
-  for (const {
-    sourceRangeStart,
-    sourceRangeEnd,
-    destinationRangeStart,
-  } of maps) {
-    // console.log(rangeStart, rangeEnd);
-    if (
-      nextRangeStart >= sourceRangeStart &&
-      nextRangeStart <= sourceRangeEnd
-    ) {
-      if (sourceRangeStart > nextRangeStart) {
-        newRanges.push([nextRangeStart, sourceRangeStart - 1]);
-        nextRangeStart = sourceRangeStart;
-      }
-      if (sourceRangeEnd >= rangeEnd) {
-        newRanges.push([
-          nextRangeStart - sourceRangeStart + destinationRangeStart,
-          rangeEnd - sourceRangeStart + destinationRangeStart,
-        ]);
-        break;
-      } else {
-        newRanges.push([
-          nextRangeStart - sourceRangeStart + destinationRangeStart,
-          sourceRangeEnd - sourceRangeStart + destinationRangeStart,
-        ]);
-        nextRangeStart = sourceRangeEnd + 1;
-      }
-    } else if (rangeEnd <= sourceRangeEnd && rangeEnd >= sourceRangeStart) {
-      if (nextRangeStart < sourceRangeStart) {
-        newRanges.push([nextRangeStart, sourceRangeStart - 1]);
-        nextRangeStart = sourceRangeStart;
-      }
-
-      newRanges.push([
-        nextRangeStart - sourceRangeStart + destinationRangeStart,
-        rangeEnd - sourceRangeStart + destinationRangeStart,
-      ]);
-
-      break;
-    } else {
-      newRanges.push([nextRangeStart, rangeEnd]);
-    }
-  }
-
-  // console.log(newRanges);
-
-  return [...new Set(newRanges)];
-}
-
-let intermediateRanges: [number, number][] = sourceRanges;
-
-Object.entries(conversionMaps).forEach(([name, map]) => {
-  console.log(
-    `Processing ${name}, ${intermediateRanges.length} intermediate ranges to process`,
-  );
-  let newRanges: [number, number][] = [];
-  intermediateRanges.forEach(([rangeStart, rangeEnd]) => {
-    newRanges = [...newRanges, ...findNewRanges(rangeStart, rangeEnd, map)];
+const convertNumber = (source: number, maps: ConversionMap[]) => {
+  const relevantMap = maps.find((map) => {
+    return source >= map.sourceRangeStart && source <= map.sourceRangeEnd;
   });
-  intermediateRanges = newRanges;
+
+  if (relevantMap === undefined) {
+    return source;
+  }
+
+  return (
+    source - relevantMap.sourceRangeStart + relevantMap.destinationRangeStart
+  );
+};
+
+seeds.forEach(([startSeed, seedRange]) => {
+  console.log("Starting seed batch");
+  for (let seed = startSeed; seed < startSeed + seedRange; seed++) {
+    let convertedNumber = seed;
+
+    Object.values(conversionMaps).forEach((map) => {
+      convertedNumber = convertNumber(convertedNumber, map);
+    });
+
+    lowestLocationNumber = Math.min(lowestLocationNumber, convertedNumber);
+  }
 });
 
-intermediateRanges
-  .sort((r1, r2) => r1[0] - r2[0])
-  .filter(([startSeed]) => startSeed !== 0);
-
-console.log(intermediateRanges);
+console.log(lowestLocationNumber);
