@@ -73,6 +73,7 @@ class PipeSection {
 
 const pipeMap: PipeSection[][] = [];
 let startPosition: [number, number];
+const loopCoords: string[] = [];
 
 let currentRow = 0;
 for await (const row of rl) {
@@ -84,6 +85,7 @@ for await (const row of rl) {
     } else if (symbol === "S") {
       startPosition = coords;
       mapRow.push(undefined);
+      loopCoords.push(coords.join(","));
     } else {
       mapRow.push(new PipeSection(symbol, coords));
     }
@@ -121,6 +123,7 @@ let currentPipeSection =
 while (
   currentPipeSection.coords.join("") !== startPipeSection.coords.join("")
 ) {
+  loopCoords.push(currentPipeSection.coords.join(","));
   const [nextX, nextY] = currentPipeSection.findConnection(
     previousPipeSection.coords,
   );
@@ -128,5 +131,7 @@ while (
   currentPipeSection = pipeMap[nextY][nextX];
   steps += 1;
 }
+
+console.log(loopCoords);
 
 console.log(steps / 2);
