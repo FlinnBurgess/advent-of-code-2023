@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as readline from "node:readline";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
-import { blob } from "stream/consumers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,31 +19,45 @@ for await (const row of rl) {
   pipeMap.push(row.replace("S", "F").split(""));
 }
 
+const validTiles = ["6,6", "7,4", "8,4", "9,4", "7,5", "8,5", "14,3", "14,6"];
+
 let enclosedLocationsCount = 0;
 
 let nonEnclosedSpacesFound: string[] = [];
 let locationsSearched: string[] = [];
-type Positioning = "Above" | "Below" | "Left" | "Right";
-const positionings: Positioning[] = [];
+type Positioning = {
+  vertical: "Above" | "Below";
+  horizontal: "Left" | "Right";
+};
 const pipeLocationsMappedToDirectionsApproached: {
-  [coords: string]: Positioning[];
+  [coords: string]: string[];
 } = {};
 
 let coordsBeingSearched: string;
 
-const searchLocation = (x: number, y: number) => {
-  // console.log(positionings);
+const debugCoords = "3,2";
+
+const searchLocation = (
+  x: number,
+  y: number,
+  positioning: Positioning,
+  searchPath: string,
+) => {
   if (x >= pipeMap[0].length || x < 0 || y < 0 || y >= pipeMap.length) {
-    console.log(
-      `reached the edge while searching for coords ${coordsBeingSearched}`,
-    );
-    positionings.pop();
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`Found a path to the outside: `, searchPath);
+    }
     return true;
   }
 
   const coordString = `${x},${y}`;
   if (nonEnclosedSpacesFound.includes(coordString)) {
-    positionings.pop();
+    if (coordsBeingSearched === debugCoords) {
+      console.log(
+        `Found a previously identified non enclosed space (${coordString}): `,
+        searchPath,
+      );
+    }
     return true;
   }
   if (pipeMap[y][x] !== ".") {
@@ -55,134 +68,164 @@ const searchLocation = (x: number, y: number) => {
       pipeLocationsMappedToDirectionsApproached[coordString] =
         directionsApproachedFrom;
     }
-    if (directionsApproachedFrom.includes(positionings.at(-1))) {
+    if (
+      directionsApproachedFrom.includes(
+        `${positioning.vertical}${positioning.horizontal}`,
+      )
+    ) {
+      if (coordsBeingSearched === debugCoords) {
+        console.log(
+          `${coordString} already searched from heading ${positioning.horizontal} ${positioning.vertical}, path: ${searchPath}`,
+        );
+      }
       return false;
     } else {
-      directionsApproachedFrom.push(positionings.at(-1));
+      directionsApproachedFrom.push(
+        `${positioning.vertical}${positioning.horizontal}`,
+      );
     }
   } else if (locationsSearched.includes(coordString)) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`${coordString} already searched, path: ${searchPath}`);
+    }
     return false;
   }
 
   locationsSearched.push(coordString);
 
   if (
-    searchRight(x, y) ||
-    searchLeft(x, y) ||
-    searchUp(x, y) ||
-    searchDown(x, y)
+    searchRight(x, y, positioning, searchPath) ||
+    searchLeft(x, y, positioning, searchPath) ||
+    searchUp(x, y, positioning, searchPath) ||
+    searchDown(x, y, positioning, searchPath)
   ) {
     if (pipeMap[y][x] === ".") {
       nonEnclosedSpacesFound.push(coordString);
     }
-    positionings.pop();
     return true;
   }
 
   return false;
 };
 
-const searchRight = (x: number, y: number) => {
+const searchRight = (
+  x: number,
+  y: number,
+  positioning: Positioning,
+  searchPath: string,
+) => {
   if (
     ["|", "L", "J", "7", "F"].includes(pipeMap[y][x]) &&
-    positionings.at(-1) === "Left"
+    positioning.horizontal === "Left"
   ) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move right, path: ${searchPath}`);
+    }
     return false;
   }
 
-  switch (positionings.at(-1)) {
-    case "Above":
-      positionings.push("Above");
-      break;
-    case "Below":
-      positionings.push("Below");
-      break;
-    default:
-      positionings.push("Left");
-  }
-
-  return searchLocation(x + 1, y);
+  return searchLocation(
+    x + 1,
+    y,
+    { ...positioning, horizontal: "Left" },
+    searchPath.concat(
+      ` -> Right (${JSON.stringify({ ...positioning, horizontal: "Left" })})`,
+    ),
+  );
 };
-const searchLeft = (x: number, y: number) => {
+const searchLeft = (
+  x: number,
+  y: number,
+  positioning: Positioning,
+  searchPath: string,
+) => {
   if (
     ["|", "L", "J", "7", "F"].includes(pipeMap[y][x]) &&
-    positionings.at(-1) === "Right"
+    positioning.horizontal === "Right"
   ) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move left, path: ${searchPath}`);
+    }
     return false;
   }
 
-  switch (positionings.at(-1)) {
-    case "Above":
-      positionings.push("Above");
-      break;
-    case "Below":
-      positionings.push("Below");
-      break;
-    default:
-      positionings.push("Right");
-  }
-
-  return searchLocation(x + 1, y);
+  return searchLocation(
+    x - 1,
+    y,
+    { ...positioning, horizontal: "Right" },
+    searchPath.concat(
+      ` -> Left (${JSON.stringify({ ...positioning, horizontal: "Right" })})`,
+    ),
+  );
 };
-const searchUp = (x: number, y: number) => {
+const searchUp = (
+  x: number,
+  y: number,
+  positioning: Positioning,
+  searchPath: string,
+) => {
   if (
     ["-", "7", "F", "L", "J"].includes(pipeMap[y][x]) &&
-    positionings.at(-1) === "Below"
+    positioning.vertical === "Below"
   ) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move up, path: ${searchPath}`);
+    }
     return false;
   }
 
-  switch (positionings.at(-1)) {
-    case "Left":
-      positionings.push("Left");
-      break;
-    case "Right":
-      positionings.push("Right");
-      break;
-    default:
-      positionings.push("Below");
-  }
-
-  return searchLocation(x, y - 1);
+  return searchLocation(
+    x,
+    y - 1,
+    { ...positioning, vertical: "Below" },
+    searchPath.concat(
+      ` -> Up (${JSON.stringify({ ...positioning, vertical: "Below" })})`,
+    ),
+  );
 };
-const searchDown = (x: number, y: number) => {
+const searchDown = (
+  x: number,
+  y: number,
+  positioning: Positioning,
+  searchPath: string,
+) => {
   if (
     ["-", "7", "F", "L", "J"].includes(pipeMap[y][x]) &&
-    positionings.at(-1) === "Above"
+    positioning.vertical === "Above"
   ) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move down, path: ${searchPath}`);
+    }
     return false;
   }
 
-  switch (positionings.at(-1)) {
-    case "Left":
-      positionings.push("Left");
-      break;
-    case "Right":
-      positionings.push("Right");
-      break;
-    default:
-      positionings.push("Above");
-  }
-  return searchLocation(x, y + 1);
+  return searchLocation(
+    x,
+    y + 1,
+    { ...positioning, vertical: "Above" },
+    searchPath.concat(
+      ` -> Down (${JSON.stringify({ ...positioning, vertical: "Above" })})`,
+    ),
+  );
 };
 
 pipeMap.forEach((row, y) => {
   row.forEach((_, x) => {
     if (pipeMap[y][x] === ".") {
       coordsBeingSearched = `${x},${y}`;
-      console.log("searching ", coordsBeingSearched);
-      if (!searchLocation(x, y)) {
+      if (
+        !searchLocation(x, y, { horizontal: "Left", vertical: "Below" }, "")
+      ) {
+        if (!validTiles.includes(coordsBeingSearched)) {
+          console.log("identified ", coordsBeingSearched, " as a valid tile");
+        }
         enclosedLocationsCount += 1;
       }
-      // if (!nonEnclosedSpacesFound.includes(`${x},${y}`)) {
-      //   enclosedLocationsCount += 1;
-      // }
-      console.log("searched: ", locationsSearched);
     }
     locationsSearched = [];
   });
 });
 
-console.log(nonEnclosedSpacesFound);
-//
-// console.log(enclosedLocationsCount);
+// console.log(nonEnclosedSpacesFound);
+
+console.log(enclosedLocationsCount);
