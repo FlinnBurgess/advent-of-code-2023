@@ -114,14 +114,56 @@ const searchRight = (
   positioning: Positioning,
   searchPath: string,
 ) => {
+  const symbol = pipeMap[y][x];
+  if (symbol === "|" && positioning.horizontal === "Left") {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move right, path: ${searchPath}`);
+    }
+    return false;
+  }
+
   if (
-    ["|", "L", "J", "7", "F"].includes(pipeMap[y][x]) &&
+    symbol === "7" &&
+    positioning.vertical === "Below" &&
     positioning.horizontal === "Left"
   ) {
     if (coordsBeingSearched === debugCoords) {
       console.log(`cant move right, path: ${searchPath}`);
     }
     return false;
+  }
+
+  if (
+    symbol === "J" &&
+    positioning.vertical === "Above" &&
+    positioning.horizontal === "Left"
+  ) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move right, path: ${searchPath}`);
+    }
+    return false;
+  }
+
+  if (symbol === "F" && positioning.horizontal === "Left") {
+    return searchLocation(
+      x + 1,
+      y,
+      { vertical: "Above", horizontal: "Left" },
+      searchPath.concat(
+        ` -> Right (${JSON.stringify({ ...positioning, horizontal: "Left" })})`,
+      ),
+    );
+  }
+
+  if (symbol === "L" && positioning.horizontal === "Left") {
+    return searchLocation(
+      x + 1,
+      y,
+      { vertical: "Below", horizontal: "Left" },
+      searchPath.concat(
+        ` -> Right (${JSON.stringify({ ...positioning, horizontal: "Left" })})`,
+      ),
+    );
   }
 
   return searchLocation(
@@ -139,14 +181,56 @@ const searchLeft = (
   positioning: Positioning,
   searchPath: string,
 ) => {
+  const symbol = pipeMap[y][x];
+  if (symbol === "|" && positioning.horizontal === "Right") {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move left, path: ${searchPath}`);
+    }
+    return false;
+  }
+
   if (
-    ["|", "L", "J", "7", "F"].includes(pipeMap[y][x]) &&
+    symbol === "F" &&
+    positioning.vertical === "Below" &&
     positioning.horizontal === "Right"
   ) {
     if (coordsBeingSearched === debugCoords) {
       console.log(`cant move left, path: ${searchPath}`);
     }
     return false;
+  }
+
+  if (
+    symbol === "L" &&
+    positioning.vertical === "Above" &&
+    positioning.horizontal === "Right"
+  ) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move left, path: ${searchPath}`);
+    }
+    return false;
+  }
+
+  if (symbol === "7" && positioning.horizontal === "Right") {
+    return searchLocation(
+      x - 1,
+      y,
+      { vertical: "Above", horizontal: "Right" },
+      searchPath.concat(
+        ` -> Left (${JSON.stringify({ ...positioning, horizontal: "Right" })})`,
+      ),
+    );
+  }
+
+  if (symbol === "J" && positioning.horizontal === "Right") {
+    return searchLocation(
+      x - 1,
+      y,
+      { vertical: "Below", horizontal: "Right" },
+      searchPath.concat(
+        ` -> Left (${JSON.stringify({ ...positioning, horizontal: "Right" })})`,
+      ),
+    );
   }
 
   return searchLocation(
@@ -164,14 +248,56 @@ const searchUp = (
   positioning: Positioning,
   searchPath: string,
 ) => {
+  const symbol = pipeMap[y][x];
+  if (symbol === "-" && positioning.vertical === "Below") {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move up, path: ${searchPath}`);
+    }
+    return false;
+  }
+
   if (
-    ["-", "7", "F", "L", "J"].includes(pipeMap[y][x]) &&
-    positioning.vertical === "Below"
+    symbol === "7" &&
+    positioning.vertical === "Below" &&
+    positioning.horizontal === "Left"
   ) {
     if (coordsBeingSearched === debugCoords) {
       console.log(`cant move up, path: ${searchPath}`);
     }
     return false;
+  }
+
+  if (
+    symbol === "F" &&
+    positioning.vertical === "Below" &&
+    positioning.horizontal === "Right"
+  ) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move up, path: ${searchPath}`);
+    }
+    return false;
+  }
+
+  if (symbol === "L" && positioning.vertical === "Below") {
+    return searchLocation(
+      x,
+      y - 1,
+      { horizontal: "Left", vertical: "Below" },
+      searchPath.concat(
+        ` -> Up (${JSON.stringify({ ...positioning, vertical: "Below" })})`,
+      ),
+    );
+  }
+
+  if (symbol === "J" && positioning.vertical === "Below") {
+    return searchLocation(
+      x,
+      y - 1,
+      { horizontal: "Right", vertical: "Below" },
+      searchPath.concat(
+        ` -> Up (${JSON.stringify({ ...positioning, vertical: "Below" })})`,
+      ),
+    );
   }
 
   return searchLocation(
@@ -189,14 +315,56 @@ const searchDown = (
   positioning: Positioning,
   searchPath: string,
 ) => {
+  const symbol = pipeMap[y][x];
+  if (symbol === "-" && positioning.vertical === "Above") {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move down, path: ${searchPath}`);
+    }
+    return false;
+  }
+
   if (
-    ["-", "7", "F", "L", "J"].includes(pipeMap[y][x]) &&
-    positioning.vertical === "Above"
+    symbol === "L" &&
+    positioning.vertical === "Above" &&
+    positioning.horizontal === "Right"
   ) {
     if (coordsBeingSearched === debugCoords) {
       console.log(`cant move down, path: ${searchPath}`);
     }
     return false;
+  }
+
+  if (
+    symbol === "J" &&
+    positioning.vertical === "Above" &&
+    positioning.horizontal === "Left"
+  ) {
+    if (coordsBeingSearched === debugCoords) {
+      console.log(`cant move down, path: ${searchPath}`);
+    }
+    return false;
+  }
+
+  if (symbol === "7" && positioning.vertical === "Above") {
+    return searchLocation(
+      x,
+      y + 1,
+      { horizontal: "Right", vertical: "Above" },
+      searchPath.concat(
+        ` -> Down (${JSON.stringify({ ...positioning, vertical: "Above" })})`,
+      ),
+    );
+  }
+
+  if (symbol === "F" && positioning.vertical === "Above") {
+    return searchLocation(
+      x,
+      y + 1,
+      { horizontal: "Left", vertical: "Above" },
+      searchPath.concat(
+        ` -> Down (${JSON.stringify({ ...positioning, vertical: "Above" })})`,
+      ),
+    );
   }
 
   return searchLocation(
@@ -222,10 +390,7 @@ pipeMap.forEach((row, y) => {
         enclosedLocationsCount += 1;
       }
     }
-    locationsSearched = [];
   });
 });
-
-// console.log(nonEnclosedSpacesFound);
 
 console.log(enclosedLocationsCount);
