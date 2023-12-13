@@ -132,6 +132,6 @@ while (
   steps += 1;
 }
 
-console.log(loopCoords);
+console.log(JSON.stringify(loopCoords));
 
 console.log(steps / 2);
