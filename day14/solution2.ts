@@ -33,8 +33,6 @@ for await (const row of rl) {
     });
 }
 
-const originalColumnLayout = columns.join("");
-
 const rotateClockwise = () => {
   const newColumns = [];
   columns.reverse();
@@ -85,7 +83,9 @@ while (rotations < 1000000000) {
   }
   tiltColumns();
   rotateClockwise();
-  rotations += 1;
+  if (currentDirection === "north") {
+    rotations += 1;
+  }
 }
 
 // console.log("rotated ", rotations, " times before it looped");
