@@ -47,8 +47,6 @@ const rotateClockwise = () => {
   currentDirection = directionMappings[currentDirection];
 };
 
-let previousMappingsFound = 0;
-
 const tiltColumns = () => {
   const newColumns: string[] = [];
   columns.forEach((column) => {
@@ -64,9 +62,6 @@ const tiltColumns = () => {
         })
         .join("#");
       previouslySeenMappings[currentDirection][column] = tiltedColumn;
-    } else {
-      previousMappingsFound += 1;
-      // console.log(`${previousMappingsFound} previous mappings found so far`);
     }
 
     newColumns.push(tiltedColumn);
@@ -75,21 +70,58 @@ const tiltColumns = () => {
   columns = newColumns;
 };
 
+const previousConfigsSeen: string[] = [];
+
+let loopFound = false;
+let rotationsRequired: number;
 let rotations = 0;
 
-while (rotations < 1000000000) {
-  if (rotations === 100000) {
-    console.timeEnd();
-  }
+while (!loopFound) {
   tiltColumns();
   rotateClockwise();
-  if (currentDirection === "north") {
-    rotations += 1;
+  tiltColumns();
+  rotateClockwise();
+  tiltColumns();
+  rotateClockwise();
+  tiltColumns();
+  rotateClockwise();
+  rotations += 1;
+  const previouslySeen = previousConfigsSeen.findIndex(
+    (config) => config === columns.join(","),
+  );
+  if (previouslySeen > -1) {
+    console.log("loop start found: ", previouslySeen + 1);
+    console.log("loop end found: ", rotations);
+    loopFound = true;
+    columns = previousConfigsSeen[previouslySeen].split(",");
+    rotationsRequired =
+      (1000000000 - previouslySeen + 1) % (rotations - previouslySeen + 1);
+  } else {
+    previousConfigsSeen.push(columns.join(","));
   }
 }
 
-// console.log("rotated ", rotations, " times before it looped");
+console.log("Rotations required: ", rotationsRequired);
 
-// let total = 0;
+for (let i = 0; i < 5; i++) {
+  tiltColumns();
+  rotateClockwise();
+  tiltColumns();
+  rotateClockwise();
+  tiltColumns();
+  rotateClockwise();
+  tiltColumns();
+  rotateClockwise();
+}
 
-// console.log(total);
+let total = 0;
+
+columns.forEach((column) => {
+  for (let i = 0; i < column.length; i++) {
+    if (column[i] === "O") {
+      total += column.length - i;
+    }
+  }
+});
+
+console.log(total);
