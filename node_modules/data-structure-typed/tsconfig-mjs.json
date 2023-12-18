@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig-base.json",
+  "compilerOptions": {
+    "rootDir": "./src/",
+    "outDir": "dist/mjs",
+    "module": "ESNext",
+    "target": "ESNext",
+    "moduleResolution": "Node",
+    "sourceMap": false
+  },
+  "include": [
+    "./src/**/*.ts"
+  ]
+}
