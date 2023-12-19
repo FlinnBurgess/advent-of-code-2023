@@ -67,13 +67,6 @@ type Limits = {
   s: { max: number; min: number };
 };
 
-let widestLimits: Limits = {
-  x: { max: 4000, min: 1 },
-  m: { max: 4000, min: 1 },
-  a: { max: 4000, min: 1 },
-  s: { max: 4000, min: 1 },
-};
-
 const pathLimits: Limits[] = [];
 
 const determineMaxesAndMinsForPath = (workflowName: string, limits: Limits) => {
@@ -104,57 +97,58 @@ determineMaxesAndMinsForPath("in", {
   s: { max: 4000, min: 1 },
 });
 
-const attributeValuesSeen = {
-  x: new Set<number>(),
-  m: new Set<number>(),
-  a: new Set<number>(),
-  s: new Set<number>(),
-};
+const seen: { x: number[]; m: number[]; a: number[]; s: number[] }[] = [];
 
 while (pathLimits.length > 0) {
   const { x, m, a, s } = pathLimits.pop();
-  let xSeenBefore = 0;
-  let mSeenBefore = 0;
-  let aSeenBefore = 0;
-  let sSeenBefore = 0;
+  let xValues: number[] = [];
+  let mValues: number[] = [];
+  let aValues: number[] = [];
+  let sValues: number[] = [];
 
   for (let xVal = x.min; xVal <= x.max; xVal++) {
-    if (attributeValuesSeen.x.has(xVal)) {
-      xSeenBefore += 1;
-    } else {
-      attributeValuesSeen.x.add(xVal);
-    }
+    xValues.push(xVal);
   }
   for (let mVal = m.min; mVal <= m.max; mVal++) {
-    if (attributeValuesSeen.m.has(mVal)) {
-      mSeenBefore += 1;
-    } else {
-      attributeValuesSeen.m.add(mVal);
-    }
+    mValues.push(mVal);
   }
   for (let aVal = a.min; aVal <= a.max; aVal++) {
-    if (attributeValuesSeen.a.has(aVal)) {
-      aSeenBefore += 1;
-    } else {
-      attributeValuesSeen.a.add(aVal);
-    }
+    aValues.push(aVal);
   }
   for (let sVal = s.min; sVal <= s.max; sVal++) {
-    if (attributeValuesSeen.s.has(sVal)) {
-      sSeenBefore += 1;
-    } else {
-      attributeValuesSeen.s.add(sVal);
-    }
+    sValues.push(sVal);
   }
 
-  const possibleX = x.max - x.min + 1;
-  const possibleM = m.max - m.min + 1;
-  const possibleA = a.max - a.min + 1;
-  const possibleS = s.max - s.min + 1;
+  let xUnique = xValues;
+  let mUnique = mValues;
+  let aUnique = aValues;
+  let sUnique = sValues;
 
+  seen.forEach(({ x: xSeen, m: mSeen, a: aSeen, s: sSeen }) => {
+    xUnique = xUnique.filter((xVal) => !xSeen.includes(xVal));
+    mUnique = mUnique.filter((mVal) => !mSeen.includes(mVal));
+    aUnique = aUnique.filter((aVal) => !aSeen.includes(aVal));
+    sUnique = sUnique.filter((sVal) => !sSeen.includes(sVal));
+  });
+
+  total += xUnique.length * mValues.length * aValues.length * sValues.length;
   total +=
-    possibleX * possibleM * possibleA * possibleS -
-    xSeenBefore * mSeenBefore * aSeenBefore * sSeenBefore;
+    mUnique.length *
+    (xValues.length - xUnique.length) *
+    aValues.length *
+    sValues.length;
+  total +=
+    aUnique.length *
+    (xValues.length - xUnique.length) *
+    (mValues.length - mUnique.length) *
+    sValues.length;
+  total +=
+    sUnique.length *
+    (xValues.length - xUnique.length) *
+    (mValues.length - mUnique.length) *
+    (aValues.length - aUnique.length);
+
+  seen.push({ x: xValues, m: mValues, a: aValues, s: sValues });
 }
 
 console.log(total);
