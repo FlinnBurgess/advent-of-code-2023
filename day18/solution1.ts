@@ -56,7 +56,9 @@ let total = 0;
 
 const grid: ("." | "#")[][] = [];
 
-const sortedYCoords = Object.keys(yCoordsToXCoords).sort();
+const sortedYCoords = Object.keys(yCoordsToXCoords).sort(
+  (a, b) => Number.parseInt(a) - Number.parseInt(b),
+);
 const minY = Number.parseInt(sortedYCoords[0]);
 
 sortedYCoords.forEach((y) => {
@@ -113,10 +115,6 @@ const determineIfInternalAndCountIfSo = (x: number, y: number) => {
 
   total = squaresFound.length + borderLength;
 };
-
-if (grid[interiorSearchStart.y - 1]?.[interiorSearchStart.x] === ".") {
-  determineIfInternalAndCountIfSo(interiorSearchStart.x, interiorSearchStart.y);
-}
 
 for (let xDiff = -1; xDiff <= 1; xDiff++) {
   for (let yDiff = -1; yDiff <= 1; yDiff++) {

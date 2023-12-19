@@ -14,115 +14,55 @@ const rl = readline.createInterface({
   crlfDelay: Infinity,
 });
 
-type Direction = "up" | "down" | "left" | "right";
+const points: { x: number; y: number }[] = [];
 
-let beamLocationsSeen: string[] = [];
+let currentX = 0;
+let currentY = 0;
+let borderLength = 0;
 
-let energizedLocations = new Set<string>();
-
-type Beam = {
-  x: number;
-  y: number;
-  direction: Direction;
-};
-
-let beams: Beam[] = [{ x: 0, y: 0, direction: "right" }];
-
-const grid: string[][] = [];
+const instructionMap = { "0": "R", "1": "D", "2": "L", "3": "U" };
 
 for await (const row of rl) {
-  grid.push(row.split(""));
-}
+  const hex = row.split(" ")[2].replace("(#", "").replace(")", "");
+  const count = Number.parseInt(hex.slice(0, 5), 16);
+  const direction = instructionMap[hex.at(-1)];
 
-const reflectionMap: {
-  [symbol: string]: { [originalDirection: string]: Direction };
-} = {
-  "/": { right: "up", up: "right", left: "down", down: "left" },
-  "\\": { right: "down", up: "left", left: "up", down: "right" },
-};
+  borderLength += count;
 
-let maxEnergized = 0;
-
-const runWithInitialBeam = ({ x, y, direction }: Beam) => {
-  console.log("Running for ", [x, y, direction].join(","));
-  beamLocationsSeen = [];
-  energizedLocations = new Set<string>();
-  beams = [{ x, y, direction }];
-
-  while (beams.length !== 0) {
-    const newBeams: Beam[] = [];
-    beams.forEach((beam) => {
-      const { x, y, direction } = beam;
-      energizedLocations.add([x, y].join(","));
-      beamLocationsSeen.push([x, y, direction].join(","));
-      const symbol = grid[y][x];
-      switch (symbol) {
-        case "/":
-        case "\\":
-          beam.direction = reflectionMap[symbol][direction];
-          break;
-        case "|":
-          if (["right", "left"].includes(direction)) {
-            beam.direction = "down";
-            newBeams.push({ x, y, direction: "up" });
-          }
-          break;
-        case "-":
-          if (["up", "down"].includes(direction)) {
-            beam.direction = "right";
-            newBeams.push({ x, y, direction: "left" });
-          }
-      }
-    });
-
-    beams.push(...newBeams);
-
-    beams.forEach((beam) => {
-      const { direction } = beam;
-
-      switch (direction) {
-        case "down":
-          beam.y = beam.y + 1;
-          break;
-        case "up":
-          beam.y = beam.y - 1;
-          break;
-        case "right":
-          beam.x = beam.x + 1;
-          break;
-        case "left":
-          beam.x = beam.x - 1;
-          break;
-      }
-    });
-
-    beams = beams.filter((beam) => {
-      const { direction, x, y } = beam;
-
-      return (
-        x >= 0 &&
-        x < grid[0].length &&
-        y >= 0 &&
-        y < grid.length &&
-        beamLocationsSeen.find(
-          (location) => location === [x, y, direction].join(","),
-        ) === undefined
-      );
-    });
+  switch (direction) {
+    case "R":
+      currentX += count;
+      break;
+    case "L":
+      currentX -= count;
+      break;
+    case "U":
+      currentY += count;
+      break;
+    case "D":
+      currentY -= count;
+      break;
   }
 
-  maxEnergized = Math.max(maxEnergized, energizedLocations.size);
-};
-
-for (let y = 0; y < grid.length; y++) {
-  runWithInitialBeam({ x: 0, y, direction: "right" });
-  runWithInitialBeam({ x: grid[0].length - 1, y, direction: "left" });
+  points.push({ x: currentX, y: currentY });
 }
 
-for (let x = 0; x < grid[0].length; x++) {
-  runWithInitialBeam({ x, y: 0, direction: "down" });
-  runWithInitialBeam({ x, y: grid.length - 1, direction: "up" });
-}
+let signedArea = 0;
+points.forEach(({ x, y }, idx) => {
+  let x2: number;
+  let y2: number;
 
-console.log(maxEnergized);
+  if (idx === points.length - 1) {
+    x2 = points[0].x;
+    y2 = points[0].y;
+  } else {
+    x2 = points[idx + 1].x;
+    y2 = points[idx + 1].y;
+  }
+
+  signedArea += x * y2 - x2 * y;
+});
+
+console.log(Math.abs(signedArea / 2) + borderLength / 2 + 1);
+
 console.timeEnd();
