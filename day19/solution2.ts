@@ -60,18 +60,28 @@ for await (const row of rl) {
 
 let total = 0;
 
-type Limits = {
-  x: { max: number; min: number };
-  m: { max: number; min: number };
-  a: { max: number; min: number };
-  s: { max: number; min: number };
+const oneTo4k: number[] = [];
+for (let i = 1; i <= 4000; i++) {
+  oneTo4k.push(i);
+}
+
+type AvailableValues = {
+  x: number[];
+  m: number[];
+  a: number[];
+  s: number[];
 };
 
-const pathLimits: Limits[] = [];
-
-const determineMaxesAndMinsForPath = (workflowName: string, limits: Limits) => {
+const determineCombinationsForPath = (
+  workflowName: string,
+  availableValues: AvailableValues,
+) => {
   if (workflowName === "A") {
-    pathLimits.push(limits);
+    total +=
+      availableValues.x.length *
+      availableValues.m.length *
+      availableValues.a.length *
+      availableValues.s.length;
     return;
   }
   if (workflowName === "R") {
@@ -79,77 +89,29 @@ const determineMaxesAndMinsForPath = (workflowName: string, limits: Limits) => {
   }
   const workflow = workflows[workflowName];
   workflow.comparators.forEach(({ attr, destination, gt, value }) => {
-    const limitsClone = JSON.parse(JSON.stringify(limits));
+    const availableValuesClone = JSON.parse(
+      JSON.stringify(availableValues),
+    ) as AvailableValues;
     if (gt) {
-      limitsClone[attr].min = Math.max(value + 1, limitsClone[attr].min);
+      availableValuesClone[attr] = availableValuesClone[attr].filter(
+        (v) => v > value,
+      );
     } else {
-      limitsClone[attr].max = Math.min(value - 1, limitsClone[attr].max);
+      availableValuesClone[attr] = availableValuesClone[attr].filter(
+        (v) => v < value,
+      );
     }
-    determineMaxesAndMinsForPath(destination, limitsClone);
+    determineCombinationsForPath(destination, availableValuesClone);
   });
-  determineMaxesAndMinsForPath(workflow.defaultDestination, limits);
+  determineCombinationsForPath(workflow.defaultDestination, availableValues);
 };
 
-determineMaxesAndMinsForPath("in", {
-  x: { max: 4000, min: 1 },
-  m: { max: 4000, min: 1 },
-  a: { max: 4000, min: 1 },
-  s: { max: 4000, min: 1 },
+determineCombinationsForPath("in", {
+  x: [...oneTo4k],
+  m: [...oneTo4k],
+  a: [...oneTo4k],
+  s: [...oneTo4k],
 });
-
-const seen: { x: number[]; m: number[]; a: number[]; s: number[] }[] = [];
-
-while (pathLimits.length > 0) {
-  const { x, m, a, s } = pathLimits.pop();
-  let xValues: number[] = [];
-  let mValues: number[] = [];
-  let aValues: number[] = [];
-  let sValues: number[] = [];
-
-  for (let xVal = x.min; xVal <= x.max; xVal++) {
-    xValues.push(xVal);
-  }
-  for (let mVal = m.min; mVal <= m.max; mVal++) {
-    mValues.push(mVal);
-  }
-  for (let aVal = a.min; aVal <= a.max; aVal++) {
-    aValues.push(aVal);
-  }
-  for (let sVal = s.min; sVal <= s.max; sVal++) {
-    sValues.push(sVal);
-  }
-
-  let xUnique = xValues;
-  let mUnique = mValues;
-  let aUnique = aValues;
-  let sUnique = sValues;
-
-  seen.forEach(({ x: xSeen, m: mSeen, a: aSeen, s: sSeen }) => {
-    xUnique = xUnique.filter((xVal) => !xSeen.includes(xVal));
-    mUnique = mUnique.filter((mVal) => !mSeen.includes(mVal));
-    aUnique = aUnique.filter((aVal) => !aSeen.includes(aVal));
-    sUnique = sUnique.filter((sVal) => !sSeen.includes(sVal));
-  });
-
-  total += xUnique.length * mValues.length * aValues.length * sValues.length;
-  total +=
-    mUnique.length *
-    (xValues.length - xUnique.length) *
-    aValues.length *
-    sValues.length;
-  total +=
-    aUnique.length *
-    (xValues.length - xUnique.length) *
-    (mValues.length - mUnique.length) *
-    sValues.length;
-  total +=
-    sUnique.length *
-    (xValues.length - xUnique.length) *
-    (mValues.length - mUnique.length) *
-    (aValues.length - aUnique.length);
-
-  seen.push({ x: xValues, m: mValues, a: aValues, s: sValues });
-}
 
 console.log(total);
 console.timeEnd();
