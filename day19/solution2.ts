@@ -59,6 +59,7 @@ for await (const row of rl) {
 }
 
 let total = 0;
+let rejected = 0;
 
 const oneTo4k: number[] = [];
 for (let i = 1; i <= 4000; i++) {
@@ -85,25 +86,27 @@ const determineCombinationsForPath = (
     return;
   }
   if (workflowName === "R") {
+    rejected +=
+      availableValues.x.length *
+      availableValues.m.length *
+      availableValues.a.length *
+      availableValues.s.length;
     return;
   }
+  let clone = JSON.parse(JSON.stringify(availableValues)) as AvailableValues;
   const workflow = workflows[workflowName];
   workflow.comparators.forEach(({ attr, destination, gt, value }) => {
-    const availableValuesClone = JSON.parse(
-      JSON.stringify(availableValues),
-    ) as AvailableValues;
+    const cloneclone = JSON.parse(JSON.stringify(clone));
     if (gt) {
-      availableValuesClone[attr] = availableValuesClone[attr].filter(
-        (v) => v > value,
-      );
+      cloneclone[attr] = cloneclone[attr].filter((v) => v > value);
+      clone[attr] = clone[attr].filter((v) => v <= value);
     } else {
-      availableValuesClone[attr] = availableValuesClone[attr].filter(
-        (v) => v < value,
-      );
+      cloneclone[attr] = cloneclone[attr].filter((v) => v < value);
+      clone[attr] = clone[attr].filter((v) => v >= value);
     }
-    determineCombinationsForPath(destination, availableValuesClone);
+    determineCombinationsForPath(destination, cloneclone);
   });
-  determineCombinationsForPath(workflow.defaultDestination, availableValues);
+  determineCombinationsForPath(workflow.defaultDestination, clone);
 };
 
 determineCombinationsForPath("in", {
@@ -114,4 +117,6 @@ determineCombinationsForPath("in", {
 });
 
 console.log(total);
+console.log(rejected);
+console.log(total + rejected);
 console.timeEnd();
