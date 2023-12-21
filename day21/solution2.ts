@@ -14,139 +14,76 @@ let rl = readline.createInterface({
   crlfDelay: Infinity,
 });
 
-type Pulse = { type: "h" | "l"; emitter: string; target: string };
+let startPosition: { x: number; y: number };
+let currentY = 0;
+const grid: string[][] = [];
+const alreadySeen: string[] = [];
 
-const modules: { [label: string]: FlipFlop | Conjunction } = {};
-const pulseQueue: Pulse[] = [];
-let highEmitted = 0;
-let lowEmitted = 0;
-
-class FlipFlop {
-  label: string;
-  connections: string[];
-  state: "on" | "off" = "off";
-  constructor(label: string, connections: string[]) {
-    this.label = label;
-    this.connections = connections;
+for await (const line of rl) {
+  grid.push(line.replace("S", ".").split(""));
+  const startIdx = line.indexOf("S");
+  if (startIdx !== -1) {
+    startPosition = { x: startIdx, y: currentY };
   }
-
-  receivePulse(pulse: Pulse) {
-    if (pulse.type === "l") {
-      if (this.state === "off") {
-        this.state = "on";
-        this.connections.forEach((con) => {
-          pulseQueue.push({ emitter: this.label, target: con, type: "h" });
-        });
-      } else {
-        this.state = "off";
-        this.connections.forEach((con) => {
-          pulseQueue.push({ emitter: this.label, target: con, type: "l" });
-        });
-      }
-    }
-  }
+  currentY++;
 }
 
-class Conjunction {
-  label: string;
-  inputPulses: { [label: string]: Pulse["type"] } = {};
-  connections: string[];
+const endPoints = new Set<string>();
+const stepGoal = 26501365;
 
-  constructor(label: string, connections: string[]) {
-    this.label = label;
-    this.connections = connections;
+const takeStep = (
+  x: number,
+  y: number,
+  stepsRemaining: number,
+  alreadySeen: string[],
+  mapX: number,
+  mapY: number,
+) => {
+  if (alreadySeen.includes([x, y].join(",")) && stepsRemaining !== stepGoal) {
+    console.log(
+      "looped after",
+      stepGoal - stepsRemaining,
+      "steps, map X:",
+      mapX,
+      "map Y:",
+      mapY,
+    );
+    return;
   }
 
-  registerInput(label: string) {
-    this.inputPulses[label] = "l";
-  }
+  const newAlreadySeen = [...alreadySeen, [x, y].join(",")];
+  let newMapY = mapY;
 
-  receivePulse(pulse: Pulse) {
-    this.inputPulses[pulse.emitter] = pulse.type;
-    if (this.label === "rg" && pulse.type === "h") {
-      console.log(timesPushed, "button presses:", pulse.emitter, "high");
+  [-1, 1].forEach((diff) => {
+    let newY = y + diff;
+    if (newY === grid.length) {
+      newY = 0;
+      newMapY += 1;
+    } else if (newY === -1) {
+      newY = grid.length - 1;
+      newMapY -= 1;
     }
-    if (
-      Object.values(this.inputPulses).find((type) => type === "l") !== undefined
-    ) {
-      this.connections.forEach((con) => {
-        pulseQueue.push({ emitter: this.label, target: con, type: "h" });
-      });
-    } else {
-      this.connections.forEach((con) => {
-        pulseQueue.push({ emitter: this.label, target: con, type: "l" });
-      });
+
+    if (grid[newY][x] === ".") {
+      takeStep(x, newY, stepsRemaining - 1, newAlreadySeen, mapX, newMapY);
     }
-  }
-}
 
-let initialTargets: string[];
-
-const conjunctionModules: string[] = [];
-
-for await (const row of rl) {
-  const [moduleDetails, targetsStr] = row.split(" -> ");
-  const targets = targetsStr.split(", ");
-  const label = moduleDetails.slice(1);
-  if (moduleDetails === "broadcaster") {
-    initialTargets = targets;
-  } else if (moduleDetails.startsWith("%")) {
-    modules[label] = new FlipFlop(label, targets);
-  } else {
-    conjunctionModules.push(label);
-    modules[label] = new Conjunction(label, targets);
-  }
-}
-
-// loop over again to register the conjunction inputs
-inputStream = fs.createReadStream(`${__dirname}/input.txt`);
-rl = readline.createInterface({
-  input: inputStream,
-  crlfDelay: Infinity,
-});
-for await (const row of rl) {
-  const [moduleDetails, targetsStr] = row.split(" -> ");
-  const targets = targetsStr.split(", ");
-  const label = moduleDetails.slice(1);
-
-  targets.forEach((t) => {
-    if (conjunctionModules.includes(t)) {
-      (modules[t] as Conjunction).registerInput(
-        moduleDetails === "broadcaster" ? "broadcaster" : label,
-      );
+    let newX = x + diff;
+    let newMapX = mapX;
+    if (newX === grid[0].length) {
+      newX = 0;
+      newMapX += 1;
+    } else if (newX === -1) {
+      newX = grid[0].length - 1;
+      newMapX -= 1;
+    }
+    if (grid[y][newX] === ".") {
+      takeStep(newX, y, stepsRemaining - 1, newAlreadySeen, newMapX, mapY);
     }
   });
-}
+};
 
-let timesPushed = 0;
+takeStep(startPosition.x, startPosition.y, stepGoal, [], 0, 0);
 
-let rxHits = 0;
-
-while (true) {
-  timesPushed += 1;
-  lowEmitted += 1;
-  rxHits = 0;
-  initialTargets.forEach((t) => {
-    pulseQueue.push({ emitter: "broadcaster", type: "l", target: t });
-  });
-  while (pulseQueue.length > 0) {
-    const nextPulse = pulseQueue.shift();
-    if (nextPulse.type === "l") {
-      lowEmitted += 1;
-    } else {
-      highEmitted += 1;
-    }
-    if (nextPulse.target === "rx" && nextPulse.type === "l") {
-      rxHits += 1;
-    }
-    modules[nextPulse.target]?.receivePulse(nextPulse);
-  }
-  if (rxHits === 1) {
-    console.log(timesPushed);
-    break;
-  }
-}
-// 3767 * 3779 * 3889 * 4057
-// 224602953547789
-// 224602953547789
+console.log(endPoints.size);
 console.timeEnd();

@@ -14,128 +14,45 @@ let rl = readline.createInterface({
   crlfDelay: Infinity,
 });
 
-type Pulse = { type: "h" | "l"; emitter: string; target: string };
+let startPosition: { x: number; y: number };
+let currentY = 0;
+const grid: string[][] = [];
+const alreadySeen: string[] = [];
 
-const modules: { [label: string]: FlipFlop | Conjunction } = {};
-const pulseQueue: Pulse[] = [];
-let highEmitted = 0;
-let lowEmitted = 0;
+for await (const line of rl) {
+  grid.push(line.replace("S", ".").split(""));
+  const startIdx = line.indexOf("S");
+  if (startIdx !== -1) {
+    startPosition = { x: startIdx, y: currentY };
+  }
+  currentY++;
+}
 
-class FlipFlop {
-  label: string;
-  connections: string[];
-  state: "on" | "off" = "off";
-  constructor(label: string, connections: string[]) {
-    this.label = label;
-    this.connections = connections;
+const endPoints = new Set<string>();
+
+const takeStep = (x: number, y: number, stepsRemaining: number) => {
+  if (alreadySeen.includes([x, y, stepsRemaining].join(","))) {
+    return;
   }
 
-  receivePulse(pulse: Pulse) {
-    if (pulse.type === "l") {
-      if (this.state === "off") {
-        this.state = "on";
-        this.connections.forEach((con) => {
-          pulseQueue.push({ emitter: this.label, target: con, type: "h" });
-        });
-      } else {
-        this.state = "off";
-        this.connections.forEach((con) => {
-          pulseQueue.push({ emitter: this.label, target: con, type: "l" });
-        });
-      }
+  if (stepsRemaining === 0) {
+    endPoints.add([x, y].join(","));
+    return;
+  }
+
+  alreadySeen.push([x, y, stepsRemaining].join(","));
+
+  [-1, 1].forEach((diff) => {
+    if (grid[y + diff]?.[x] === ".") {
+      takeStep(x, y + diff, stepsRemaining - 1);
     }
-  }
-}
-
-class Conjunction {
-  label: string;
-  inputPulses: { [label: string]: Pulse["type"] } = {};
-  connections: string[];
-
-  constructor(label: string, connections: string[]) {
-    this.label = label;
-    this.connections = connections;
-  }
-
-  registerInput(label: string) {
-    this.inputPulses[label] = "l";
-  }
-
-  receivePulse(pulse: Pulse) {
-    this.inputPulses[pulse.emitter] = pulse.type;
-    if (
-      Object.values(this.inputPulses).find((type) => type === "l") !== undefined
-    ) {
-      this.connections.forEach((con) => {
-        pulseQueue.push({ emitter: this.label, target: con, type: "h" });
-      });
-    } else {
-      this.connections.forEach((con) => {
-        pulseQueue.push({ emitter: this.label, target: con, type: "l" });
-      });
-    }
-  }
-}
-
-let initialTargets: string[];
-
-const conjunctionModules: string[] = [];
-
-for await (const row of rl) {
-  const [moduleDetails, targetsStr] = row.split(" -> ");
-  const targets = targetsStr.split(", ");
-  const label = moduleDetails.slice(1);
-  if (moduleDetails === "broadcaster") {
-    initialTargets = targets;
-  } else if (moduleDetails.startsWith("%")) {
-    modules[label] = new FlipFlop(label, targets);
-  } else {
-    conjunctionModules.push(label);
-    modules[label] = new Conjunction(label, targets);
-  }
-}
-
-// loop over again to register the conjunction inputs
-inputStream = fs.createReadStream(`${__dirname}/input.txt`);
-rl = readline.createInterface({
-  input: inputStream,
-  crlfDelay: Infinity,
-});
-for await (const row of rl) {
-  const [moduleDetails, targetsStr] = row.split(" -> ");
-  const targets = targetsStr.split(", ");
-  const label = moduleDetails.slice(1);
-
-  targets.forEach((t) => {
-    if (conjunctionModules.includes(t)) {
-      (modules[t] as Conjunction).registerInput(
-        moduleDetails === "broadcaster" ? "broadcaster" : label,
-      );
+    if (grid[y]?.[x + diff] === ".") {
+      takeStep(x + diff, y, stepsRemaining - 1);
     }
   });
-}
+};
 
-let timesPushed = 0;
+takeStep(startPosition.x, startPosition.y, 64);
 
-while (timesPushed < 1000) {
-  timesPushed += 1;
-  lowEmitted += 1;
-  initialTargets.forEach((t) => {
-    pulseQueue.push({ emitter: "broadcaster", type: "l", target: t });
-  });
-  while (pulseQueue.length > 0) {
-    const nextPulse = pulseQueue.shift();
-    if (nextPulse.type === "l") {
-      lowEmitted += 1;
-    } else {
-      highEmitted += 1;
-    }
-    modules[nextPulse.target]?.receivePulse(nextPulse);
-  }
-}
-
-console.log(highEmitted, "high emitted");
-console.log(lowEmitted, "low emitted");
-
-console.log(highEmitted * lowEmitted);
+console.log(endPoints.size);
 console.timeEnd();
