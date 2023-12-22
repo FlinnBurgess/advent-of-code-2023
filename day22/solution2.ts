@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as readline from "node:readline";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import { convertLineToNumberArray } from "../utils";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,76 +15,108 @@ let rl = readline.createInterface({
   crlfDelay: Infinity,
 });
 
-let startPosition: { x: number; y: number };
-let currentY = 0;
-const grid: string[][] = [];
-const alreadySeen: string[] = [];
+type Brick = {
+  identifier: number;
+  xStart: number;
+  xEnd: number;
+  yStart: number;
+  yEnd: number;
+  zStart: number;
+  zEnd: number;
+};
+
+const bricks: Brick[] = [];
+
+let identifier = 1;
 
 for await (const line of rl) {
-  grid.push(line.replace("S", ".").split(""));
-  const startIdx = line.indexOf("S");
-  if (startIdx !== -1) {
-    startPosition = { x: startIdx, y: currentY };
-  }
-  currentY++;
+  const [start, end] = line.split("~");
+  const [xStart, yStart, zStart] = convertLineToNumberArray(start, ",");
+  const [xEnd, yEnd, zEnd] = convertLineToNumberArray(end, ",");
+
+  bricks.push({ xStart, yStart, zStart, yEnd, xEnd, zEnd, identifier });
+
+  identifier++;
 }
 
-const endPoints = new Set<string>();
-const stepGoal = 26501365;
+bricks.sort((a, b) => a.zStart - b.zStart);
 
-const takeStep = (
-  x: number,
-  y: number,
-  stepsRemaining: number,
-  alreadySeen: string[],
-  mapX: number,
-  mapY: number,
-) => {
-  if (alreadySeen.includes([x, y].join(",")) && stepsRemaining !== stepGoal) {
-    console.log(
-      "looped after",
-      stepGoal - stepsRemaining,
-      "steps, map X:",
-      mapX,
-      "map Y:",
-      mapY,
-    );
-    return;
+const brickPositionMap: { [coords: string]: Brick } = {};
+
+function findBricksSupportingBrick(brick: Brick, map = brickPositionMap) {
+  const supportingBricks: Brick[] = [];
+
+  if (brick.zStart > 1) {
+    for (let x = brick.xStart; x <= brick.xEnd; x++) {
+      for (let y = brick.yStart; y <= brick.yEnd; y++) {
+        supportingBricks.push(map[[x, y, brick.zStart - 1].join(",")]);
+      }
+    }
   }
 
-  const newAlreadySeen = [...alreadySeen, [x, y].join(",")];
-  let newMapY = mapY;
+  return supportingBricks.filter((b) => b !== undefined);
+}
 
-  [-1, 1].forEach((diff) => {
-    let newY = y + diff;
-    if (newY === grid.length) {
-      newY = 0;
-      newMapY += 1;
-    } else if (newY === -1) {
-      newY = grid.length - 1;
-      newMapY -= 1;
-    }
+function findBricksBeingSupportedByBrick(brick, map = brickPositionMap) {
+  const supportedBricks: Brick[] = [];
 
-    if (grid[newY][x] === ".") {
-      takeStep(x, newY, stepsRemaining - 1, newAlreadySeen, mapX, newMapY);
+  for (let x = brick.xStart; x <= brick.xEnd; x++) {
+    for (let y = brick.yStart; y <= brick.yEnd; y++) {
+      supportedBricks.push(map[[x, y, brick.zEnd + 1].join(",")]);
     }
+  }
 
-    let newX = x + diff;
-    let newMapX = mapX;
-    if (newX === grid[0].length) {
-      newX = 0;
-      newMapX += 1;
-    } else if (newX === -1) {
-      newX = grid[0].length - 1;
-      newMapX -= 1;
+  return supportedBricks.filter((x) => x !== undefined);
+}
+
+bricks.forEach((brick) => {
+  while (brick.zStart !== 1 && findBricksSupportingBrick(brick).length === 0) {
+    brick.zStart -= 1;
+    brick.zEnd -= 1;
+  }
+  for (let x = brick.xStart; x <= brick.xEnd; x++) {
+    for (let y = brick.yStart; y <= brick.yEnd; y++) {
+      for (let z = brick.zStart; z <= brick.zEnd; z++) {
+        brickPositionMap[[x, y, z].join(",")] = brick;
+      }
     }
-    if (grid[y][newX] === ".") {
-      takeStep(newX, y, stepsRemaining - 1, newAlreadySeen, newMapX, mapY);
+  }
+});
+
+let total = 0;
+
+const simulateDisintegration = (brick: Brick) => {
+  const clone = JSON.parse(JSON.stringify(brickPositionMap));
+  for (let x = brick.xStart; x <= brick.xEnd; x++) {
+    for (let y = brick.yStart; y <= brick.yEnd; y++) {
+      for (let z = brick.zStart; z <= brick.zEnd; z++) {
+        delete clone[[x, y, z].join(",")];
+      }
+    }
+  }
+
+  let simulationInProgress = true;
+
+  bricks.forEach((otherBrick) => {
+    if (
+      otherBrick.zStart > 1 &&
+      findBricksSupportingBrick(otherBrick, clone).length === 0
+    ) {
+      total += 1;
+      for (let x = otherBrick.xStart; x <= otherBrick.xEnd; x++) {
+        for (let y = otherBrick.yStart; y <= otherBrick.yEnd; y++) {
+          for (let z = otherBrick.zStart; z <= otherBrick.zEnd; z++) {
+            delete clone[[x, y, z].join(",")];
+          }
+        }
+      }
     }
   });
 };
 
-takeStep(startPosition.x, startPosition.y, stepGoal, [], 0, 0);
+bricks.forEach((brick) => {
+  simulateDisintegration(brick);
+});
 
-console.log(endPoints.size);
+console.log(total);
 console.timeEnd();

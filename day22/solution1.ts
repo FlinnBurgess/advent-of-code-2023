@@ -41,18 +41,16 @@ for await (const line of rl) {
 
 bricks.sort((a, b) => a.zStart - b.zStart);
 
-const brickRestingPositionMap: { [coords: string]: Brick } = {};
+const brickPositionMap: { [coords: string]: Brick } = {};
 
-const findBricksSupportingBrick: (b: Brick) => Brick[] = (
-  supportedBrick: Brick,
-) => {
+const findBricksSupportingBrick: (b: Brick) => Brick[] = (brick: Brick) => {
   const supportingBricks: Brick[] = [];
 
-  if (supportedBrick.zStart > 1) {
-    for (let x = supportedBrick.xStart; x <= supportedBrick.xEnd; x++) {
-      for (let y = supportedBrick.yStart; y <= supportedBrick.yEnd; y++) {
+  if (brick.zStart > 1) {
+    for (let x = brick.xStart; x <= brick.xEnd; x++) {
+      for (let y = brick.yStart; y <= brick.yEnd; y++) {
         supportingBricks.push(
-          brickRestingPositionMap[[x, y, supportedBrick.zStart - 1].join(",")],
+          brickPositionMap[[x, y, brick.zStart - 1].join(",")],
         );
       }
     }
@@ -61,16 +59,12 @@ const findBricksSupportingBrick: (b: Brick) => Brick[] = (
   return supportingBricks.filter((b) => b !== undefined);
 };
 
-const findBricksBeingSupportedByBrick: (_: Brick) => Brick[] = (
-  supportedBrick,
-) => {
+const findBricksBeingSupportedByBrick: (_: Brick) => Brick[] = (brick) => {
   const supportedBricks: Brick[] = [];
 
-  for (let x = supportedBrick.xStart; x <= supportedBrick.xEnd; x++) {
-    for (let y = supportedBrick.yStart; y <= supportedBrick.yEnd; y++) {
-      supportedBricks.push(
-        brickRestingPositionMap[[x, y, supportedBrick.zEnd + 1].join(",")],
-      );
+  for (let x = brick.xStart; x <= brick.xEnd; x++) {
+    for (let y = brick.yStart; y <= brick.yEnd; y++) {
+      supportedBricks.push(brickPositionMap[[x, y, brick.zEnd + 1].join(",")]);
     }
   }
 
@@ -84,7 +78,9 @@ bricks.forEach((brick) => {
   }
   for (let x = brick.xStart; x <= brick.xEnd; x++) {
     for (let y = brick.yStart; y <= brick.yEnd; y++) {
-      brickRestingPositionMap[[x, y, brick.zStart].join(",")] = brick;
+      for (let z = brick.zStart; z <= brick.zEnd; z++) {
+        brickPositionMap[[x, y, z].join(",")] = brick;
+      }
     }
   }
 });
