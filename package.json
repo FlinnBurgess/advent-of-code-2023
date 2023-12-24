@@ -16,6 +16,7 @@
     "typescript": "^5.3.2"
   },
   "dependencies": {
+    "line-intersect": "^3.0.0",
     "p-queue-ts": "^1.2.0",
     "priority-queue-typed": "^1.49.2"
   }
